@@ -23,13 +23,17 @@ you may need to additionally install TK library like (Ubuntu):
 sudo apt install python3-tk
 ```
 
+### Start
+To run the program you need to execute the file "experiment.pyw" (windowed python app without console)
+
+
 ### Experiment structure
 
 1. **Stage 1**. To take into account the specific conditions of the experiment (resolution and display settings, 
 lighting features), a short survey is initially conducted. It is impossible to provide identical laboratory conditions, 
 so the survey results are important for identifying possible reasons for differences in individual results.
 
-![img2.png](attachments/img2.png | width="100px")
+![img2.png](attachments/img2.png)
 
 2. **Stage 2 (demo mode)**. To get acquainted with the program interface, the demo mode is launched, which shows 5 pairs of images 
 and possible visual quality assessments for them.
