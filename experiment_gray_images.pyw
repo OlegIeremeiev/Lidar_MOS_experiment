@@ -142,7 +142,7 @@ class Experiment:
         self.begin_time: float = 0
         self.end_time: float = 0
         self.times = []
-        self.image_path = 'images_gray'
+        self.image_path = 'images_grey'
 
     def get_images_stats(self):
         # todo
@@ -291,7 +291,7 @@ class Experiment:
         # print(res)
         saved_result['results'] = res
 
-        file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}_gray.yaml"
+        file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}_grey.yaml"
         YAML.write(saved_result, file_name, 'results')
 
         swp = list(filter(os.path.isfile, Path('results').glob('*survey.yaml')))[0]
@@ -346,7 +346,7 @@ class CustomFrame(ABC):
 
 
 class ImageFrame(CustomFrame):
-    impath = 'images_gray'
+    impath = 'images_grey'
     language = {
         'b1': "Terrible (1)",
         'b2': "Bad (2)",
