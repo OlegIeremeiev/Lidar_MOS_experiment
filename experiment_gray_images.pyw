@@ -291,7 +291,7 @@ class Experiment:
         # print(res)
         saved_result['results'] = res
 
-        file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}_grey.yaml"
+        file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}_gray.yaml"
         YAML.write(saved_result, file_name, 'results')
 
         swp = list(filter(os.path.isfile, Path('results').glob('*survey.yaml')))[0]
