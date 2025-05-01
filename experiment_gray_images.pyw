@@ -142,6 +142,7 @@ class Experiment:
         self.begin_time: float = 0
         self.end_time: float = 0
         self.times = []
+        self.image_path = 'images_gray'
 
     def get_images_stats(self):
         # todo
@@ -152,11 +153,11 @@ class Experiment:
         if self.mode == 'demo':
             return self.init_demo()
 
-        tmp = list(filter(os.path.isfile, Path('images').glob('*gt.png')))
+        tmp = list(filter(os.path.isfile, Path(self.image_path).glob('*gt.png')))
         ref_images = dict(zip([re.split('_gt', r.name)[0] for r in tmp], tmp))
 
         # ref_images = list(filter(os.path.isfile, Path('images').glob('*gt.png')))
-        tmp = list(filter(os.path.isfile, Path('images').glob('*recon.png')))
+        tmp = list(filter(os.path.isfile, Path(self.image_path).glob('*recon.png')))
         dist_images = dict(zip([re.split('_recon', d.name)[0] for d in tmp], tmp))
 
         # ref_names = [re.split('_gt', r.name)[0] for r in ref_images]
@@ -191,14 +192,13 @@ class Experiment:
         # 2022_SERC_6_364000_4308000_gt - 5
         # 2022_SERC_6_369000_4303000_gt - 1
 
-        demo_images = ("2022_SERC_6_369000_4303000",
-                       "2022_SERC_6_358000_4301000",
+        demo_images = ("2022_SERC_6_358000_4301000",
                        "2022_SERC_6_358000_4304000",
                        "2022_SERC_6_362000_4310000",
                        "2022_SERC_6_364000_4308000")
 
-        tmp1 = list(filter(os.path.isfile, Path('images').glob('*gt.png')))
-        tmp2 = list(filter(os.path.isfile, Path('images').glob('*recon.png')))
+        tmp1 = list(filter(os.path.isfile, Path(self.image_path).glob('*gt.png')))
+        tmp2 = list(filter(os.path.isfile, Path(self.image_path).glob('*recon.png')))
 
         ref_images = dict()
         dist_images = dict()
@@ -212,8 +212,8 @@ class Experiment:
 
         self.status = 'init'
         self.pairs = pairs
-        self.rounds = 5
-        self.results = [2, 3, 4, 5, 1]
+        self.rounds = 4
+        self.results = [3, 4, 5, 1]
         self.times = [0.0] * self.rounds
         self.round = 0
         return True
@@ -291,9 +291,11 @@ class Experiment:
         # print(res)
         saved_result['results'] = res
 
-        file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}.yaml"
+        file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}_grey.yaml"
         YAML.write(saved_result, file_name, 'results')
 
+        swp = list(filter(os.path.isfile, Path('results').glob('*survey.yaml')))[0]
+        Network.upload_file(saved_result['name'], swp.name, swp.parent.name)
         Network.upload_file(saved_result['name'], file_name, 'results')
         # to do yaml
         # to do upload
@@ -344,7 +346,7 @@ class CustomFrame(ABC):
 
 
 class ImageFrame(CustomFrame):
-    impath = 'images'
+    impath = 'images_gray'
     language = {
         'b1': "Terrible (1)",
         'b2': "Bad (2)",
