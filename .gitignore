@@ -2,5 +2,6 @@ venv/*
 .idea/*
 .git/*
 results/*
+results_grey/*
 statistics/*
 statistics.py
