@@ -78,7 +78,7 @@ class GUI:
             # win.focus_set()
         else:
             YAML.write(data, f'{data["name"]}_survey.yaml', 'results')
-            # Network.upload_file(data['name'], file_name, 'results')
+            Network.upload_file(data['name'], f'{data["name"]}_survey.yaml', 'results')
             dialog.destroy()
             self.experiment.mode = 'demo'
             self.imgFrame.configure({'name': {'text': data['name']+" (demo)"}})
@@ -312,7 +312,6 @@ class Experiment:
         if tmp_v == 1:
             file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}_gray.yaml"
         YAML.write(saved_result, file_name, 'results')
-
         Network.upload_file(saved_result['name'], file_name, 'results')
         # to do yaml
         # to do upload
