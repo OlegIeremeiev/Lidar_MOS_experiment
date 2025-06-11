@@ -1,6 +1,5 @@
-import threading
 from tkinter import Tk, Toplevel, Frame, Label, Button, Entry, StringVar, NSEW, N, S, E, W, \
-    Canvas, RIDGE, DISABLED, NORMAL, END, Scale, IntVar, HORIZONTAL, Checkbutton, RAISED, SUNKEN
+    Canvas, RIDGE, DISABLED, NORMAL, Scale, IntVar, HORIZONTAL, RAISED, SUNKEN
 from tkinter import ttk
 import os, platform
 import re
@@ -18,27 +17,29 @@ class GUI:
         :rtype: App class
         """
         self.network = None
+        self.cur_lang = 'en'
+
         # init window
         self.tk = Tk()
         self.tk.grid()
-        self.tk.protocol("WM_DELETE_WINDOW", lambda parent=self.tk: CustomDialog.quit_dialog(parent))
+        self.tk.protocol("WM_DELETE_WINDOW", lambda parent=self.tk: CustomDialog.quit_dialog(parent, self.cur_lang))
         self.tk.resizable(False, False)
 
         # main frame
         self.imgFrame = ImageFrame(self.tk)
+        self.imgFrame.init_lang_action(self)
         self.experiment = Experiment(self)
         self.lock_buttons(True)
         self.__check_folders()
         self.is_loaded_survey = False
 
-    @staticmethod
-    def __check_folders():
+    def __check_folders(self):
         """
         Check if folders are existed
         """
-        # path = Path('images')
-        # if not path.exists():
-        #     path.mkdir()
+        path = Path('images')
+        if not path.exists():
+            CustomDialog.noimage_dialog(self.tk, 'noimagetitle', 'noimagemessage')
         path = Path('results')
         if not path.exists():
             path.mkdir()
@@ -89,15 +90,17 @@ class GUI:
         if state:
             self.imgFrame.configure({'b1': {'state': DISABLED}, 'b2': {'state': DISABLED},
                                      'b3': {'state': DISABLED}, 'b4': {'state': DISABLED},
-                                     'b5': {'state': DISABLED}, 'n1': {'state': DISABLED}})
-            self.imgFrame.configure({'n2': {'text': self.imgFrame.language['start'],
+                                     'b5': {'state': DISABLED}, 'n1': {'state': DISABLED},
+                                     'color': {'state': 'readonly'}})
+            self.imgFrame.configure({'n2': {'text': self.imgFrame.language[self.imgFrame.cur_lang]['start'],
                                             'command': lambda: self.__begin_action(), 'state': NORMAL}})
         else:
             # demo or full
             self.imgFrame.configure({'b1': {'state': NORMAL}, 'b2': {'state': NORMAL},
                                      'b3': {'state': NORMAL}, 'b4': {'state': NORMAL},
-                                     'b5': {'state': NORMAL}, 'n1': {'state': NORMAL}})
-            self.imgFrame.configure({'n2': {'text': self.imgFrame.language['n2']}})
+                                     'b5': {'state': NORMAL}, 'n1': {'state': NORMAL},
+                                     'color': {'state': DISABLED}})
+            self.imgFrame.configure({'n2': {'text': self.imgFrame.language[self.imgFrame.cur_lang]['n2']}})
 
     def start(self):
         self.tk.mainloop()
@@ -116,9 +119,12 @@ class GUI:
 
     def __start_experiment(self):
 
+        if self.imgFrame.color.current() == -1:
+            CustomDialog.ok_dialog(self.tk,'colormodetitle', 'colormodemessage')
+            return
         if not self.__init_experiment():
             return
-        print(f"start experiment ({self.experiment.mode})")
+        # print(f"start experiment ({self.experiment.mode})")
         self.lock_buttons(False)
         # win.destroy()
         # self.experiment.mode == "demo" / "full"
@@ -152,12 +158,18 @@ class Experiment:
         if self.mode == 'demo':
             return self.init_demo()
 
-        tmp = list(filter(os.path.isfile, Path('images').glob('*gt.png')))
-        ref_images = dict(zip([re.split('_gt', r.name)[0] for r in tmp], tmp))
+        if self.gui.imgFrame.color.current() == 0:  # color
+            tmp = list(filter(os.path.isfile, Path('images').glob('*_color_gt.png')))
+            ref_images = dict(zip([re.split('_gt', r.name)[0] for r in tmp], tmp))
 
-        # ref_images = list(filter(os.path.isfile, Path('images').glob('*gt.png')))
-        tmp = list(filter(os.path.isfile, Path('images').glob('*recon.png')))
-        dist_images = dict(zip([re.split('_recon', d.name)[0] for d in tmp], tmp))
+            tmp = list(filter(os.path.isfile, Path('images').glob('*_color_recon.png')))
+            dist_images = dict(zip([re.split('_recon', d.name)[0] for d in tmp], tmp))
+        else:
+            tmp = list(filter(os.path.isfile, Path('images').glob('*_gray_gt.png')))
+            ref_images = dict(zip([re.split('_gt', r.name)[0] for r in tmp], tmp))
+
+            tmp = list(filter(os.path.isfile, Path('images').glob('*_gray_recon.png')))
+            dist_images = dict(zip([re.split('_recon', d.name)[0] for d in tmp], tmp))
 
         # ref_names = [re.split('_gt', r.name)[0] for r in ref_images]
         # dist_names = [re.split('_recon', d.name)[0]  for d in dist_images]
@@ -185,17 +197,18 @@ class Experiment:
         return True
 
     def init_demo(self) -> bool:
-        # 2022_SERC_6_358000_4301000_gt - 2
-        # 2022_SERC_6_358000_4304000_gt - 3
-        # 2022_SERC_6_362000_4310000_gt - 4
-        # 2022_SERC_6_364000_4308000_gt - 5
-        # 2022_SERC_6_369000_4303000_gt - 1
 
-        demo_images = ("2022_SERC_6_369000_4303000",
-                       "2022_SERC_6_358000_4301000",
-                       "2022_SERC_6_358000_4304000",
-                       "2022_SERC_6_362000_4310000",
-                       "2022_SERC_6_364000_4308000")
+        if self.gui.imgFrame.color.current() == 0:
+            demo_images = ("2022_SERC_6_369000_4303000_0.98_color",
+                           "2022_SERC_6_358000_4301000_0.98_color",
+                           "2022_SERC_6_358000_4304000_0.98_color",
+                           "2022_SERC_6_362000_4310000_0.98_color",
+                           "2022_SERC_6_364000_4308000_0.98_color")
+        else:
+            demo_images = ("2022_SERC_6_358000_4301000_0.98_gray",
+                           "2022_SERC_6_358000_4304000_0.98_gray",
+                           "2022_SERC_6_362000_4310000_0.98_gray",
+                           "2022_SERC_6_364000_4308000_0.98_gray")
 
         tmp1 = list(filter(os.path.isfile, Path('images').glob('*gt.png')))
         tmp2 = list(filter(os.path.isfile, Path('images').glob('*recon.png')))
@@ -237,10 +250,11 @@ class Experiment:
     def __next_action(self):
         if self.round >= self.rounds:
             return
+
+        self.results[self.round] = self.gui.imgFrame.get_selection()
         if self.round == self.rounds - 1:
             self.__save_results()
             return
-        self.results[self.round] = self.gui.imgFrame.get_selection()
         # print(self.results)
         if self.round < self.rounds - 1:
             if self.returns > 0:
@@ -260,9 +274,9 @@ class Experiment:
 
     def __n1_n2_options(self):
         if self.round == self.rounds - 1:
-            self.gui.imgFrame.configure({'n2': {'text': self.gui.imgFrame.language['save']}})
+            self.gui.imgFrame.configure({'n2': {'text': self.gui.imgFrame.language[self.gui.imgFrame.cur_lang]['save']}})
         else:
-            self.gui.imgFrame.configure({'n2': {'text': self.gui.imgFrame.language['n2']}})
+            self.gui.imgFrame.configure({'n2': {'text': self.gui.imgFrame.language[self.gui.imgFrame.cur_lang]['n2']}})
 
 
     def __save_results(self):
@@ -345,19 +359,35 @@ class CustomFrame(ABC):
 
 class ImageFrame(CustomFrame):
     impath = 'images'
+    colormodels = ['color','gray']
+    lang_list = {'en': 'EN', 'ua': 'UA'}
     language = {
-        'b1': "Terrible (1)",
-        'b2': "Bad (2)",
-        'b3': "Average (3)",
-        'b4': "Good (4)",
-        'b5': "Excellent (5)",
-        'n1': "<< Previous",
-        'n2': "Next >>",
-        'notification': "---",
-        'start': "Start",
-        'save': "Save",
-        'title': "MOS estimation test"
-    }
+        'en': {
+            'b1': "Terrible (1)",
+            'b2': "Bad (2)",
+            'b3': "Average (3)",
+            'b4': "Good (4)",
+            'b5': "Excellent (5)",
+            'n1': "<< Previous",
+            'n2': "Next >>",
+            'notification': "---",
+            'start': "Start",
+            'save': "Save",
+            'title': "MOS estimation test (v2.0)"},
+        'ua':{
+            'b1': "Жахливе (1)",
+            'b2': "Погане (2)",
+            'b3': "Середнє (3)",
+            'b4': "Гарне (4)",
+            'b5': "Бездоганне (5)",
+            'n1': "<< Попереднє",
+            'n2': "Наступне >>",
+            'notification': "---",
+            'start': "Старт",
+            'save': "Зберегти",
+            'title': "Тест з визначення MOS (v2.0)"}
+        }
+    cur_lang = 'en'
 
     def __init__(self, parent: Tk = None) -> None:
         self.dist_img = None
@@ -368,7 +398,7 @@ class ImageFrame(CustomFrame):
     def _layout(self, frame: Frame) -> None:
         self.__frame = frame
         super()._layout(frame)
-        self.tk.title(self.language['title'])
+        self.tk.title(self.language[self.cur_lang]['title'])
 
         self.ref_canvas = ZoomedCanvas(frame, image=self.ref_img)
         self.ref_canvas.grid(row=1, column=0, padx=10, pady=2)
@@ -386,40 +416,45 @@ class ImageFrame(CustomFrame):
         self.name = Label(fr1, text="Name", anchor="w", justify="left")
         self.name.grid(row=0, column=0, padx=(5, 10), pady=2, sticky=W)
         self.progress = ttk.Progressbar(fr1, orient="horizontal", length=300, value=0)
-        self.progress.grid(row=0, column=1, padx=5, pady=2, sticky=S + E + W)
+        self.progress.grid(row=0, column=2, columnspan=2, padx=5, pady=2, sticky=S + E + W)
 
-        # self.lang = ttk.Combobox(fr1, values=list(self.lang_list.values()), width=15, state="readonly")
-        # self.lang.current(1)
-        # self.lang.grid(row=0, column=2, padx=5, pady=2, sticky=E)
+        colormod = StringVar()
+        self.color = ttk.Combobox(fr1, textvariable=colormod, values=self.colormodels, width=15, state="readonly")
+        self.color.grid(row=0, column=4, padx=5, pady=2, sticky=S + E + W)
+
+        # colormod = StringVar()
+        self.lang = ttk.Combobox(fr1, values=list(self.lang_list.values()), width=15, state="readonly")
+        self.lang.current(0)
+        self.lang.grid(row=0, column=1, padx=5, pady=2, sticky=E)
 
         fr2 = Frame(frame, bd=2, relief=RIDGE)
         fr2.grid(row=2, column=0, columnspan=2, padx=12, pady=5, sticky=E+W)
         fr2.grid_columnconfigure(0, weight=1)
         # fr2.grid_columnconfigure(1, weight=0)
         fr2.grid_columnconfigure(2, weight=1)
-        self.b1 = Button(fr2, text=self.language['b1'], width=15, height=2,
+        self.b1 = Button(fr2, text=self.language[self.cur_lang]['b1'], width=15, height=2,
                          command=lambda: self.__test_action(1, True), relief=RAISED)
         self.b1.grid(row=0, column=0, padx=5, pady=2, sticky=E)
-        self.b2 = Button(fr2, text=self.language['b2'], width=15, height=2,
+        self.b2 = Button(fr2, text=self.language[self.cur_lang]['b2'], width=15, height=2,
                          command=lambda: self.__test_action(2, True), relief=RAISED)
         self.b2.grid(row=0, column=1, padx=5, pady=2)
-        self.b3 = Button(fr2, text=self.language['b3'], width=15, height=2,
+        self.b3 = Button(fr2, text=self.language[self.cur_lang]['b3'], width=15, height=2,
                          command=lambda: self.__test_action(3, True), relief=RAISED)
         self.b3.grid(row=0, column=2, padx=5, pady=2, sticky=W)
-        self.b4 = Button(fr2, text=self.language['b4'], width=15, height=2,
+        self.b4 = Button(fr2, text=self.language[self.cur_lang]['b4'], width=15, height=2,
                          command=lambda: self.__test_action(4, True), relief=RAISED)
         self.b4.grid(row=0, column=3, padx=5, pady=2, sticky=E)
-        self.b5 = Button(fr2, text=self.language['b5'], width=15, height=2,
+        self.b5 = Button(fr2, text=self.language[self.cur_lang]['b5'], width=15, height=2,
                          command=lambda: self.__test_action(5, True), relief=RAISED)
         self.b5.grid(row=0, column=4, padx=5, pady=2)
 
         fr3 = Frame(frame)
         fr3.grid(row=3, column=0, columnspan=2, padx=6, pady=6, sticky=E+W)
-        self.notification = Label(fr3, text=self.language['notification'], anchor="w", justify="left")
+        self.notification = Label(fr3, text=self.language[self.cur_lang]['notification'], anchor="w", justify="left")
         self.notification.grid(row=0, column=0, padx=(5, 10), pady=2, sticky=W)
-        self.n1 = Button(fr3, text=self.language['n1'], width=15, height=2)
+        self.n1 = Button(fr3, text=self.language[self.cur_lang]['n1'], width=15, height=2)
         self.n1.grid(row=0, column=1, padx=5, pady=2, sticky=E)
-        self.n2 = Button(fr3, text=self.language['n2'], width=15, height=2)
+        self.n2 = Button(fr3, text=self.language[self.cur_lang]['n2'], width=15, height=2)
         self.n2.grid(row=0, column=2, padx=5, pady=2, sticky=E)
         fr3.grid_columnconfigure(1, weight=1)
 
@@ -473,6 +508,26 @@ class ImageFrame(CustomFrame):
 
     def get_frame(self) -> Frame:
         return self.__frame
+
+    def init_lang_action(self, gui: GUI):
+        self.gui_link = gui
+        self.lang.bind('<<ComboboxSelected>>', lambda lang=self.lang.get().lower(): self.__select_lang(lang))
+
+    def __select_lang(self, lang: str):
+        lang = self.lang.get().lower()
+        self.cur_lang = lang
+        self.tk.title(self.language[self.cur_lang]['title'])
+        self.notification['text'] = self.language[self.cur_lang]['notification']
+        self.b1['text'] = self.language[self.cur_lang]['b1']
+        self.b2['text'] = self.language[self.cur_lang]['b2']
+        self.b3['text'] = self.language[self.cur_lang]['b3']
+        self.b4['text'] = self.language[self.cur_lang]['b4']
+        self.b5['text'] = self.language[self.cur_lang]['b5']
+
+        self.n1['text'] = self.language[self.cur_lang]['n1']
+        self.n2['text'] = self.language[self.cur_lang]['start'] if self.n1['state'] == DISABLED else (
+            self.language)[self.cur_lang]['n2']
+        self.gui_link.cur_lang = lang
 
     def mouse_motion(self, event):
         cx = 0
@@ -589,36 +644,67 @@ class ModalDialog:
 
 class CustomDialog:
     @staticmethod
-    def _messages() -> dict:
-        return {
-            'exit': "Exit",
-            'exit_question': "Exit the program?",
-            'yes': "Yes",
-            'no': "No",
-            'survey': "Survey",
-            'survey_mistake': "Incorrect data",
-            'load': "Loading",
-            'noinetmessage': "No permission to\nconnect to the Internet",
-            'noinettitle': "No permission",
-            'noexpertitle': "Experiment error",
-            'noexpermessage': "Unable to run experiment, insufficient number of images",
-            'needloadtitle': "Download required",
-            'needloadmessage': "The missing images must be loaded to start the experiment",
-            'newveriontitle': "Update the program",
-            'newversionmessage': "A new version of the program has been\npublished. Please update using the link:",
-            'newversionlink': "https://github.com/OlegIeremeiev/VisibilityTest",
-            'savetitle': "Saving",
-            'savemessage': "The result was saved successfully"
+    def _messages(lang:str) -> dict:
+        messages = {
+            'en': {
+                'exit': "Exit",
+                'exit_question': "Exit the program?",
+                'yes': "Yes",
+                'no': "No",
+                'survey': "Survey",
+                'survey_mistake': "Incorrect data",
+                'load': "Loading",
+                'noinetmessage': "No permission to\nconnect to the Internet",
+                'noinettitle': "No permission",
+                'noexpertitle': "Experiment error",
+                'noexpermessage': "Unable to run experiment, insufficient number of images",
+                'needloadtitle': "Download required",
+                'needloadmessage': "The missing images must be loaded to start the experiment",
+                'newveriontitle': "Update the program",
+                'newversionmessage': "A new version of the program has been\npublished. Please update using the link:",
+                'newversionlink': "https://github.com/OlegIeremeiev/Lidar_MOS_experiment",
+                'noimagetitle': "No image",
+                'noimagemessage': "No images are found. Program will close",
+                'savetitle': "Saving",
+                'savemessage': "The result was saved successfully",
+                'colormodetitle': "Warning!",
+                'colormodemessage': "Color model of the images is not selected"
+            },
+            'ua': {
+                'exit': "Вихід",
+                'exit_question': "Вийти з програми?",
+                'yes': "Так",
+                'no': "Ні",
+                'survey': "Опитування",
+                'survey_mistake': "Некоректні дані",
+                'load': "Завантаження",
+                'noinetmessage': "Немає дозволу\nпідключитися до Інтернет",
+                'noinettitle': "Немає дозволу",
+                'noexpertitle': "Помилка експерименту",
+                'noexpermessage': "Неможливо запустити експеримент, недостатня кількість зображень",
+                'needloadtitle': "Потрібне завантаження",
+                'needloadmessage': "Відсутні зображення мають бути\nзавантажені для старту експерименту",
+                'newveriontitle': "Оновлення програми",
+                'newversionmessage': "Опубліковано нову версію програми. Будь ласка оновіть за посиланням:",
+                'newversionlink': "https://github.com/OlegIeremeiev/Lidar_MOS_experiment",
+                'noimagetitle': "Немає зображень",
+                'noimagemessage': "Зображення не знайдені. Програма буде закрита",
+                'savetitle': "Збереження",
+                'savemessage': "Результат був успішно збережений",
+                'colormodetitle': "Попередження!",
+                'colormodemessage': "Не обрано кольорову модель зображень"
+            }
         }
+        return messages[lang]
 
     @staticmethod
-    def quit_dialog(parent_window: Tk | Toplevel | None):
+    def quit_dialog(parent_window: Tk | Toplevel | None, lang: str = 'en'):
         """
         Create custom dialog window for program quit
         :param parent_window: main frame to which this dialog needs to be attached
         :param language: selected language for all messages
         """
-        messages = CustomDialog._messages()
+        messages = CustomDialog._messages(lang)
         win = ModalDialog.create_dialog(parent_window, title=messages['exit'])
 
         Label(win, text=messages['exit_question']) \
@@ -629,19 +715,28 @@ class CustomDialog:
             .grid(column=1, row=1, sticky=NSEW, padx=10, pady=5)
 
     @staticmethod
-    def survey_dialog(parent_window: Tk | Toplevel | None) -> Toplevel:
-        messages = CustomDialog._messages()
+    def survey_dialog(parent_window: Tk | Toplevel | None, lang: str = 'en') -> Toplevel:
+        messages = CustomDialog._messages(lang)
         win = ModalDialog.create_dialog(parent_window, title=messages['survey'])
-        win.protocol("WM_DELETE_WINDOW", lambda parent=win: CustomDialog.quit_dialog(parent))
+        win.protocol("WM_DELETE_WINDOW", lambda parent=win: CustomDialog.quit_dialog(parent, lang))
         return win
 
     @staticmethod
-    def ok_dialog(parent_window: Tk | Toplevel | None,  title_type, message_type):
-        messages = CustomDialog._messages()
+    def ok_dialog(parent_window: Tk | Toplevel | None,  title_type, message_type, lang: str = 'en'):
+        messages = CustomDialog._messages(lang)
         win = ModalDialog.create_dialog(parent_window, title=messages[title_type])
         Label(win, text=messages[message_type]) \
             .grid(column=0, row=0, sticky=N+S, padx=10, pady=2)
         Button(win, text=messages['yes'], command=win.destroy, width=5) \
+            .grid(column=0, row=1, sticky=N+S, padx=10, pady=5)
+
+    @staticmethod
+    def noimage_dialog(parent_window: Tk | Toplevel | None,  title_type, message_type, lang: str = 'en'):
+        messages = CustomDialog._messages(lang)
+        win = ModalDialog.create_dialog(parent_window, title=messages[title_type])
+        Label(win, text=messages[message_type]) \
+            .grid(column=0, row=0, sticky=N+S, padx=10, pady=2)
+        Button(win, text=messages['yes'], command=parent_window.quit, width=5) \
             .grid(column=0, row=1, sticky=N+S, padx=10, pady=5)
 
 
@@ -665,86 +760,102 @@ class Network:
 
 class SurveyFrame(CustomFrame):
     language = {
-        'intro': "Control questions about the conditions for\nconducting experiments on the distortions visibility",
-        'name': "Name:",
-        'name_hint': "Name, Surname",
-        'age': "Age:",
-        'device_type': ["Device type:", "Monitor", "Laptop", "Projector", "Other"],
-        'device': "Device model:",
-        'screen_size': "Screen diagonal:",
-        'resolution': "Resolution:",
-        'resolution_hint': "1920x1080",
-        'luminance': "Screen brightness (%):",
-        'light': ["Room lighting:", "artificial", "natural"],
-        'description': "The listed factors significantly affect\nthe results of experiments and are mandatory to enter\n(used only for statistical studies)",
-        'save': "Save"
+        'en': {
+            'intro': "Control questions about the conditions for\nconducting experiments on the distortions visibility",
+            'name': "Name:",
+            'name_hint': "Name, Surname",
+            'age': "Age:",
+            'device_type': ["Device type:", "Monitor", "Laptop", "Projector", "Other"],
+            'device': "Device model:",
+            'screen_size': "Screen diagonal (inch):",
+            'resolution': "Resolution:",
+            'resolution_hint': "1920x1080",
+            'luminance': "Screen brightness (%):",
+            'light': ["Room lighting:", "artificial", "natural"],
+            'description': "The listed factors significantly affect\nthe results of experiments and are mandatory to enter\n(used only for statistical studies)",
+            'save': "Save"},
+        'ua': {
+            'intro': "Контрольні питання про умови проведення експерименту з помітності завад",
+            'name': "Ім'я:",
+            'name_hint': "Ім'я, Прізвище",
+            'age': "Вік:",
+            'device_type': ["Тип пристрою:", "Монітор", "Ноутбук", "Проектор", "Інше"],
+            'device': "Модель пристрою:",
+            'screen_size': "Діагональ екрану (дюйми):",
+            'resolution': "Роздільна здатність:",
+            'resolution_hint': "1920x1080",
+            'luminance': "Яскравість екрану (%):",
+            'light': ["Освітлення приміщення:", "штучне", "природнє"],
+            'description': "Перераховані фактори суттєво впливають на\nрезультати експерименту і обов'язкові для внесення\n(використовуються лише для статистичних досліджень)",
+            'save': "Зберегти"}
     }
 
-    def __init__(self, parent: Tk | Toplevel | None = None):
+    def __init__(self, parent: Tk | Toplevel | None = None, lang: str = 'en') -> None:
         super().__init__(parent)
+        self.cur_lang = lang
 
     def _layout(self, frame: Frame) -> None:
         self.__frame = frame
         super()._layout(frame)
         self.labels = dict()
-        Label(frame, text=self.language['intro'], anchor="w", justify="left") \
+        Label(frame, text=self.language[self.cur_lang]['intro'], anchor="w", justify="left") \
             .grid(row=0, column=0, columnspan=2, sticky=E+W, padx=5, pady=2)
 
-        self.labels['name'] = Label(frame, text=self.language['name'], anchor="w", justify="left")
+        self.labels['name'] = Label(frame, text=self.language[self.cur_lang]['name'], anchor="w", justify="left")
         self.labels['name'].grid(row=1, column=0, sticky=E+W, padx=5, pady=2)
-        self.name = EntryWithHint(frame, hint=self.language['name_hint'])
+        self.name = EntryWithHint(frame, hint=self.language[self.cur_lang]['name_hint'])
         self.name.config(width=30)
         self.name.grid(row=1, column=1, sticky=E+W, padx=5, pady=2)
 
-        self.labels['age'] = Label(frame, text=self.language['age'], anchor="w", justify="left")
+        self.labels['age'] = Label(frame, text=self.language[self.cur_lang]['age'], anchor="w", justify="left")
         self.labels['age'].grid(row=2, column=0, sticky=E+W, padx=5, pady=2)
         self.age = Scale(frame, variable=IntVar(value=0), from_=0, to=100, orient=HORIZONTAL)
         # self.age = Spinbox(frame, from_=10, to=100, width=10, textvariable=StringVar(value=str(10)))
         self.age.grid(row=2, column=1, sticky=E+W, padx=5, pady=2)
 
-        self.labels['device_type'] = Label(frame, text=self.language['device_type'][0], anchor="w",
+        self.labels['device_type'] = Label(frame, text=self.language[self.cur_lang]['device_type'][0], anchor="w",
                                            justify="left")
         self.labels['device_type'].grid(row=3, column=0, sticky=E+W, padx=5, pady=2)
-        def_device = StringVar(value=self.language['device_type'][1])
+        def_device = StringVar(value=self.language[self.cur_lang]['device_type'][1])
         self.device_type = ttk.Combobox(frame, textvariable=def_device,
-                                        values=self.language['device_type'][1:], width=15,
+                                        values=self.language[self.cur_lang]['device_type'][1:], width=15,
                                         state="readonly")
         # lst = Listbox(frame, listvariable=Variable(value=), width=15)
         self.device_type.grid(row=3, column=1, sticky=E+W, padx=5, pady=2)
 
-        self.labels['device'] = Label(frame, text=self.language['device'], anchor="w", justify="left")
+        self.labels['device'] = Label(frame, text=self.language[self.cur_lang]['device'], anchor="w", justify="left")
         self.labels['device'].grid(row=4, column=0, sticky=E+W, padx=5, pady=2)
         self.device = Entry(frame, width=20)
         self.device.grid(row=4, column=1, sticky=E+W, padx=5, pady=2)
 
-        self.labels['screen_size'] = Label(frame, text=self.language['screen_size'], anchor="w",
+        self.labels['screen_size'] = Label(frame, text=self.language[self.cur_lang]['screen_size'], anchor="w",
                                            justify="left")
         self.labels['screen_size'].grid(row=5, column=0, sticky=E+W, padx=5, pady=2)
         self.screen = Entry(frame, width=15)
         self.screen.grid(row=5, column=1, sticky=E+W, padx=5, pady=2)
 
-        self.labels['resolution'] = Label(frame, text=self.language['resolution'], anchor="w",
+        self.labels['resolution'] = Label(frame, text=self.language[self.cur_lang]['resolution'], anchor="w",
                                           justify="left")
         self.labels['resolution'].grid(row=6, column=0, sticky=E+W, padx=5, pady=2)
-        self.resol = EntryWithHint(frame, hint=self.language['resolution_hint'])  # split by x_ua, x_en
+        self.resol = EntryWithHint(frame, hint=self.language[self.cur_lang]['resolution_hint'])  # split by x_ua, x_en
         self.resol.config(width=15)
         self.resol.grid(row=6, column=1, sticky=E+W, padx=5, pady=2)
 
-        self.labels['luminance'] = Label(frame, text=self.language['luminance'], anchor="w",
+        self.labels['luminance'] = Label(frame, text=self.language[self.cur_lang]['luminance'], anchor="w",
                                          justify="left")
         self.labels['luminance'].grid(row=7, column=0, sticky=E+W, padx=5, pady=2)
         self.lum = Scale(frame, variable=IntVar(value=-1), from_=-1, to=100, orient=HORIZONTAL)
         # self.lum = Spinbox(frame, from_=-1, to=100, width=10, textvariable=StringVar(value=str(-1)))
         self.lum.grid(row=7, column=1, sticky=E+W, padx=5, pady=2)
 
-        self.labels['light'] = Label(frame, text=self.language['light'][0], anchor="w", justify="left")
+        self.labels['light'] = Label(frame, text=self.language[self.cur_lang]['light'][0], anchor="w", justify="left")
         self.labels['light'].grid(row=8, column=0, sticky=E+W, padx=5, pady=2)
-        self.light = ttk.Combobox(frame, values=self.language['light'][1:], width=15, state="readonly")
+        self.light = ttk.Combobox(frame, values=self.language[self.cur_lang]['light'][1:], width=15, state="readonly")
         self.light.grid(row=8, column=1, sticky=E+W, padx=5, pady=2)
 
-        Label(frame, text=self.language['description'], anchor="w", justify="left") \
+        Label(frame, text=self.language[self.cur_lang]['description'], anchor="w", justify="left") \
             .grid(row=9, column=0, columnspan=2, sticky=E+W, padx=5, pady=2)
-        self.button = Button(frame, text=self.language['save'])
+        self.button = Button(frame, text=self.language[self.cur_lang]['save'])
         self.button.grid(row=10, column=0, columnspan=2, padx=5, pady=(2, 5))
 
     def get_data(self) -> dict:

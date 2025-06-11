@@ -237,10 +237,13 @@ class Experiment:
     def __next_action(self):
         if self.round >= self.rounds:
             return
+
+        self.results[self.round] = self.gui.imgFrame.get_selection()
+
         if self.round == self.rounds - 1:
             self.__save_results()
             return
-        self.results[self.round] = self.gui.imgFrame.get_selection()
+
         # print(self.results)
         if self.round < self.rounds - 1:
             if self.returns > 0:
