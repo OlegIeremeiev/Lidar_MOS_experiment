@@ -1,5 +1,5 @@
 from tkinter import Tk, Toplevel, Frame, Label, Button, Entry, StringVar, NSEW, N, S, E, W, \
-    Canvas, RIDGE, DISABLED, NORMAL, Scale, IntVar, HORIZONTAL, RAISED, SUNKEN
+    Canvas, RIDGE, DISABLED, NORMAL, Scale, IntVar, HORIZONTAL, RAISED, SUNKEN, Text, Scrollbar
 from tkinter import ttk
 import os, platform
 import re
@@ -39,7 +39,7 @@ class GUI:
         """
         path = Path('images')
         if not path.exists():
-            CustomDialog.noimage_dialog(self.tk, 'noimagetitle', 'noimagemessage')
+            CustomDialog.noimage_dialog(self.tk, 'noimagetitle', 'noimagemessage', self.cur_lang)
         path = Path('results')
         if not path.exists():
             path.mkdir()
@@ -62,8 +62,8 @@ class GUI:
             self.__start_experiment()
 
     def __survey_dialog(self, parent_tk):
-        win = CustomDialog.survey_dialog(parent_tk)
-        survey = SurveyFrame(win)
+        win = CustomDialog.survey_dialog(parent_tk, self.cur_lang)
+        survey = SurveyFrame(win, self.cur_lang)
         survey.configure({'button': {'command': lambda: self.__survey_save(win, survey.get_data())}})
         # survey.set_button_action(lambda: self.__survey_save(win, survey.get_data()))
 
@@ -74,7 +74,7 @@ class GUI:
         :param data: gathered data to save
         """
         if not data:
-            CustomDialog.ok_dialog(dialog, 'survey', 'survey_mistake')
+            CustomDialog.ok_dialog(dialog, 'survey', 'survey_mistake', self.cur_lang)
             # win.focus_set()
         else:
             YAML.write(data, f'{data["name"]}_survey.yaml', 'results')
@@ -110,7 +110,7 @@ class GUI:
             success = self.experiment.init_experiment()
             if not success:
                 print('not init experiment')
-                CustomDialog.ok_dialog(self.tk, 'noexpertitle', 'noexpermessage')
+                CustomDialog.ok_dialog(self.tk, 'noexpertitle', 'noexpermessage', self.cur_lang)
                 # todo
                 return False
             return True
@@ -120,7 +120,7 @@ class GUI:
     def __start_experiment(self):
 
         if self.imgFrame.color.current() == -1:
-            CustomDialog.ok_dialog(self.tk,'colormodetitle', 'colormodemessage')
+            CustomDialog.ok_dialog(self.tk,'colormodetitle', 'colormodemessage', self.cur_lang)
             return
         if not self.__init_experiment():
             return
@@ -296,6 +296,9 @@ class Experiment:
         saved_result['end_time'] = self.__formatted_time('%Y-%m-%d %H:%M:%S', self.end_time)
         saved_result['markers'] = [self.begin_time, self.end_time]
         saved_result['rnd'] = random.randint(1000000, 9999999)
+        tmp_v = self.gui.imgFrame.color.current()
+        saved_result['color'] = self.gui.imgFrame.colormodels[tmp_v] if tmp_v >= 0 else 'none'
+
         # saved_result['conf_version'] = self.gui.conf_version
         # saved_result['app_version'] = self.gui.version
 
@@ -306,13 +309,15 @@ class Experiment:
         saved_result['results'] = res
 
         file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}.yaml"
+        if tmp_v == 1:
+            file_name = f"{saved_result['name']} {self.__formatted_time('%Y-%m-%d %H.%M.%S', self.begin_time)}_gray.yaml"
         YAML.write(saved_result, file_name, 'results')
 
         Network.upload_file(saved_result['name'], file_name, 'results')
         # to do yaml
         # to do upload
         self.__clear()
-        CustomDialog.ok_dialog(self.gui.tk, 'savetitle', 'savemessage')
+        CustomDialog.ok_dialog(self.gui.tk, 'savetitle', 'savemessage', self.gui.cur_lang)
         self.gui.lock_buttons(True)
         # self.gui.load_dialog(self.gui.tk)
 
@@ -331,8 +336,6 @@ class Experiment:
         self.begin_time = 0
         self.end_time = 0
         self.times = []
-
-
 
 
 class CustomFrame(ABC):
@@ -359,7 +362,7 @@ class CustomFrame(ABC):
 
 class ImageFrame(CustomFrame):
     impath = 'images'
-    colormodels = ['color','gray']
+    colormodels = ['color', 'gray']
     lang_list = {'en': 'EN', 'ua': 'UA'}
     language = {
         'en': {
@@ -370,10 +373,11 @@ class ImageFrame(CustomFrame):
             'b5': "Excellent (5)",
             'n1': "<< Previous",
             'n2': "Next >>",
-            'notification': "---",
+            'notes': "Іnstruction",
             'start': "Start",
             'save': "Save",
-            'title': "MOS estimation test (v2.0)"},
+            'title': "MOS estimation test (v2.0)",
+            'colorlbl': "Color model:"},
         'ua':{
             'b1': "Жахливе (1)",
             'b2': "Погане (2)",
@@ -382,10 +386,11 @@ class ImageFrame(CustomFrame):
             'b5': "Бездоганне (5)",
             'n1': "<< Попереднє",
             'n2': "Наступне >>",
-            'notification': "---",
+            'notes': "Інструкція",
             'start': "Старт",
             'save': "Зберегти",
-            'title': "Тест з визначення MOS (v2.0)"}
+            'title': "Тест з визначення MOS (v2.0)",
+            'colorlbl': "Кольорова модель:"}
         }
     cur_lang = 'en'
 
@@ -415,17 +420,22 @@ class ImageFrame(CustomFrame):
         fr1.columnconfigure(1, weight=1)
         self.name = Label(fr1, text="Name", anchor="w", justify="left")
         self.name.grid(row=0, column=0, padx=(5, 10), pady=2, sticky=W)
-        self.progress = ttk.Progressbar(fr1, orient="horizontal", length=300, value=0)
-        self.progress.grid(row=0, column=2, columnspan=2, padx=5, pady=2, sticky=S + E + W)
-
-        colormod = StringVar()
-        self.color = ttk.Combobox(fr1, textvariable=colormod, values=self.colormodels, width=15, state="readonly")
-        self.color.grid(row=0, column=4, padx=5, pady=2, sticky=S + E + W)
 
         # colormod = StringVar()
         self.lang = ttk.Combobox(fr1, values=list(self.lang_list.values()), width=15, state="readonly")
         self.lang.current(0)
-        self.lang.grid(row=0, column=1, padx=5, pady=2, sticky=E)
+        self.lang.grid(row=0, column=4, padx=5, pady=2, sticky=E)
+
+        self.colorlbl = Label(fr1, text=self.language[self.cur_lang]['colorlbl'], anchor="w", justify="left")
+        self.colorlbl.grid(row=1, column=0, padx=(5, 10), pady=2, sticky=W)
+        colormod = StringVar()
+        self.color = ttk.Combobox(fr1, textvariable=colormod, values=self.colormodels, width=15, state="readonly")
+        self.color.grid(row=1, column=1, padx=5, pady=2, sticky=W)
+
+        self.progress = ttk.Progressbar(fr1, orient="horizontal", length=400, value=0)
+        self.progress.grid(row=1, column=2, columnspan=3, padx=5, pady=2, sticky=E + W)
+
+
 
         fr2 = Frame(frame, bd=2, relief=RIDGE)
         fr2.grid(row=2, column=0, columnspan=2, padx=12, pady=5, sticky=E+W)
@@ -450,13 +460,17 @@ class ImageFrame(CustomFrame):
 
         fr3 = Frame(frame)
         fr3.grid(row=3, column=0, columnspan=2, padx=6, pady=6, sticky=E+W)
-        self.notification = Label(fr3, text=self.language[self.cur_lang]['notification'], anchor="w", justify="left")
+
+        self.notification = Button(fr3, text=self.language[self.cur_lang]['notes'], width=15, height=2,
+                                   command=self.open_instructions)
         self.notification.grid(row=0, column=0, padx=(5, 10), pady=2, sticky=W)
+
         self.n1 = Button(fr3, text=self.language[self.cur_lang]['n1'], width=15, height=2)
         self.n1.grid(row=0, column=1, padx=5, pady=2, sticky=E)
         self.n2 = Button(fr3, text=self.language[self.cur_lang]['n2'], width=15, height=2)
         self.n2.grid(row=0, column=2, padx=5, pady=2, sticky=E)
         fr3.grid_columnconfigure(1, weight=1)
+
 
     def __test_action(self, button_id: int, action: bool = True):
 
@@ -517,7 +531,8 @@ class ImageFrame(CustomFrame):
         lang = self.lang.get().lower()
         self.cur_lang = lang
         self.tk.title(self.language[self.cur_lang]['title'])
-        self.notification['text'] = self.language[self.cur_lang]['notification']
+        self.notification['text'] = self.language[self.cur_lang]['notes']
+        self.colorlbl['text'] = self.language[self.cur_lang]['colorlbl']
         self.b1['text'] = self.language[self.cur_lang]['b1']
         self.b2['text'] = self.language[self.cur_lang]['b2']
         self.b3['text'] = self.language[self.cur_lang]['b3']
@@ -539,6 +554,9 @@ class ImageFrame(CustomFrame):
             # cy=self.winfo_pointery() - self.winfo_rooty()
         self.dist_canvas.after(0, self.dist_canvas.canvas_zooming(event, cx, cy))
         self.ref_canvas.after(0, self.ref_canvas.canvas_zooming(event, cx, cy))
+
+    def open_instructions(self):
+        CustomDialog.instructions_dialog(self.gui_link.tk, 'notes', 'description', self.cur_lang)
 
 
 class ZoomedCanvas(Canvas):
@@ -668,7 +686,27 @@ class CustomDialog:
                 'savetitle': "Saving",
                 'savemessage': "The result was saved successfully",
                 'colormodetitle': "Warning!",
-                'colormodemessage': "Color model of the images is not selected"
+                'colormodemessage': "Color model of the images is not selected",
+                'notes': "Instructions",
+                'description': """
+MOS estimation test instructions
+
+The program is designed to obtain a quantitative assessment of the visual quality between the original and reconstructed images
+Task: for a selected set of image pairs (ground truth and reconstructed) assess the visual degree of difference from 1 (terrible) for colossal differences in a pair of images to 5 (excellent) for images with unnoticeable or just noticeable differences
+
+Experiment structure
+Prerequisites: Selecting a set of images of the required color model (color or grayscale) is necessary to start the experiment. Experiments for each color model are conducted independently.
+
+Stage 1. To take into account the specific conditions of the experiment (resolution and display settings, lighting features), a short survey is initially conducted. It is impossible to provide identical laboratory conditions, so the survey results are important for identifying possible reasons for differences in individual results.
+
+Stage 2 (demo mode). To get acquainted with the program interface, the demo mode is launched, which shows 5 pairs of images and possible visual quality assessments for them.
+
+Stage 3. The main experiment consists of 198 image pairs (stored in the “images” folder) that need to be estimated. It is recommended to use no more than 5-10 seconds for each image pair.
+
+Note: hovering over an image allows you to zoom in on that fragment up to 200%
+
+The evaluation results and additional technical information are stored in the “results” folder. The results are also automatically uploaded to the cloud for centralized collection of information. They can also be downloaded directly from the link https://e.pcloud.com/#page=puplink&code=apQ7ZTjKmwtFEpCQTr3Gv6DYlymuEtUey
+"""
             },
             'ua': {
                 'exit': "Вихід",
@@ -692,7 +730,27 @@ class CustomDialog:
                 'savetitle': "Збереження",
                 'savemessage': "Результат був успішно збережений",
                 'colormodetitle': "Попередження!",
-                'colormodemessage': "Не обрано кольорову модель зображень"
+                'colormodemessage': "Не обрано кольорову модель зображень",
+                'notes': "Інструкції",
+                'description': """
+Інструкції з тестування оцінки MOS
+
+Програма розроблена для отримання кількісної оцінки візуальної відмінності (якості) між оригінальними та реконструйованими зображеннями.
+Завдання: для вибраного набору пар зображень (оригінальні та реконструйовані) оцінити ступінь візуальної різниці від 1 (жахлива) для колосальних відмінностей у парі зображень до 5 (відмінна) для зображень з непомітними або ледь помітними відмінностями.
+
+Структура експерименту
+Передумови: Вибір набору зображень потрібної колірної моделі (кольорової або у градаціях сірого) необхідний для початку експерименту. Експерименти для кожної колірної моделі проводяться незалежно.
+
+Етап 1. Щоб врахувати конкретні умови експерименту (налаштування роздільної здатності, тип пристрою, особливості освітлення), спочатку проводиться коротке опитування. Неможливо забезпечити ідентичні лабораторні умови, тому результати опитування важливі для виявлення можливих причин відмінностей в окремих результатах.
+
+Етап 2 (демо-режим). Для ознайомлення з інтерфейсом програми запускається демонстраційний режим, в якому показано 5 пар зображень та можливі оцінки візуальної якості для них.
+
+Етап 3. Основний експеримент складається зі 198 пар зображень (зберігаються в папці «images»), які потрібно оцінити. Рекомендується використовувати не більше 5-10 секунд для кожної пари зображень.
+
+Примітка: наведення курсора на зображення дозволяє збільшити масштаб цього фрагмента до 200%.
+
+Результати оцінювання та додаткова технічна інформація зберігаються в папці «results». Результати також автоматично завантажуються в хмару для централізованого збору інформації. Їх також можна завантажити безпосередньо за посиланням https://e.pcloud.com/#page=puplink&code=apQ7ZTjKmwtFEpCQTr3Gv6DYlymuEtUey.
+                """
             }
         }
         return messages[lang]
@@ -739,6 +797,22 @@ class CustomDialog:
         Button(win, text=messages['yes'], command=parent_window.quit, width=5) \
             .grid(column=0, row=1, sticky=N+S, padx=10, pady=5)
 
+    def instructions_dialog(parent_window: Tk | Toplevel | None, title_type, message_type, lang: str = 'en'):
+        messages = CustomDialog._messages(lang)
+        win = ModalDialog.create_dialog(parent_window, title=messages[title_type])
+
+        textWidget = Text(win, width=50, height=15, wrap="word")
+        scrollbar = Scrollbar(win, command=textWidget.yview)
+        textWidget.config(yscrollcommand=scrollbar.set)
+        textWidget.grid(column=0, row=0, sticky=N+S, padx=(10, 0), pady=2)
+        scrollbar.grid(column=1, row=0, sticky=N+S, padx=(0, 10), pady=2)
+
+        Button(win, text=messages['yes'], command=win.destroy, width=5) \
+            .grid(column=0, row=1, sticky=N+S, padx=10, pady=5)
+
+        textWidget.insert("1.0", messages[message_type])
+        textWidget.config(state="disabled")
+
 
 class Network:
 
@@ -775,7 +849,7 @@ class SurveyFrame(CustomFrame):
             'description': "The listed factors significantly affect\nthe results of experiments and are mandatory to enter\n(used only for statistical studies)",
             'save': "Save"},
         'ua': {
-            'intro': "Контрольні питання про умови проведення експерименту з помітності завад",
+            'intro': "Контрольні питання про умови\nпроведення експерименту з помітності завад",
             'name': "Ім'я:",
             'name_hint': "Ім'я, Прізвище",
             'age': "Вік:",
@@ -789,10 +863,12 @@ class SurveyFrame(CustomFrame):
             'description': "Перераховані фактори суттєво впливають на\nрезультати експерименту і обов'язкові для внесення\n(використовуються лише для статистичних досліджень)",
             'save': "Зберегти"}
     }
+    cur_lang = 'en'
 
     def __init__(self, parent: Tk | Toplevel | None = None, lang: str = 'en') -> None:
-        super().__init__(parent)
         self.cur_lang = lang
+        super().__init__(parent)
+        # self.__set_default_values()
 
     def _layout(self, frame: Frame) -> None:
         self.__frame = frame

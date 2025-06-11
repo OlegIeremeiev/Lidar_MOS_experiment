@@ -40,7 +40,7 @@ and possible visual quality assessments for them.
 
 ![img3.png](attachments/img3.png)
 
-3. The main experiment consists of 66 image pairs (stored in the “images” folder) that need to be estimated. It is 
+3. The main experiment consists of 198 image pairs (version 2.0 update) stored in the “images” folder, that need to be estimated. It is 
 recommended to use no more than 5 seconds for each image pair. \
 **Note**: hovering over an image allows you to zoom in on that fragment up to 200%
 4. The evaluation results and additional technical information are stored in the “results” folder. The results are also automatically uploaded to the cloud for centralized collection of information. They can also be downloaded directly from the link https://e.pcloud.com/#page=puplink&code=apQ7ZTjKmwtFEpCQTr3Gv6DYlymuEtUey
