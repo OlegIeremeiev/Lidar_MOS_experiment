@@ -158,17 +158,23 @@ class Experiment:
         if self.mode == 'demo':
             return self.init_demo()
 
-        if self.gui.imgFrame.color.current() == 0:  # color
+        if self.gui.imgFrame.color.current() == 0:  # SERC color
             tmp = list(filter(os.path.isfile, Path('images').glob('*_color_gt.png')))
             ref_images = dict(zip([re.split('_gt', r.name)[0] for r in tmp], tmp))
 
             tmp = list(filter(os.path.isfile, Path('images').glob('*_color_recon.png')))
             dist_images = dict(zip([re.split('_recon', d.name)[0] for d in tmp], tmp))
-        else:
+        elif self.gui.imgFrame.color.current() == 1:  # SERC gray
             tmp = list(filter(os.path.isfile, Path('images').glob('*_gray_gt.png')))
             ref_images = dict(zip([re.split('_gt', r.name)[0] for r in tmp], tmp))
 
             tmp = list(filter(os.path.isfile, Path('images').glob('*_gray_recon.png')))
+            dist_images = dict(zip([re.split('_recon', d.name)[0] for d in tmp], tmp))
+        else:
+            tmp = list(filter(os.path.isfile, Path('images').glob('2023_TEAK_*_gt.png')))
+            ref_images = dict(zip([re.split('_gt', r.name)[0] for r in tmp], tmp))
+
+            tmp = list(filter(os.path.isfile, Path('images').glob('2023_TEAK_*_recon.png')))
             dist_images = dict(zip([re.split('_recon', d.name)[0] for d in tmp], tmp))
 
         # ref_names = [re.split('_gt', r.name)[0] for r in ref_images]
@@ -182,10 +188,13 @@ class Experiment:
 
         # print(f'validation: {validity}')
 
-        # random pairs
+        # random pairs + identity check
         pairs = []
         for r in ref_images.keys():
-            pairs.append((ref_images[r].name, dist_images[r].name))
+            try:
+                pairs.append((ref_images[r].name, dist_images[r].name))
+            except:
+                print(f'Error: {r} image incompatibility')
         random.shuffle(pairs)
 
         self.status = 'init'
@@ -198,7 +207,7 @@ class Experiment:
 
     def init_demo(self) -> bool:
 
-        if self.gui.imgFrame.color.current() == 0:
+        if self.gui.imgFrame.color.current() in (0, 2):
             demo_images = ("2022_SERC_6_369000_4303000_0.98_color",
                            "2022_SERC_6_358000_4301000_0.98_color",
                            "2022_SERC_6_358000_4304000_0.98_color",
@@ -297,7 +306,14 @@ class Experiment:
         saved_result['markers'] = [self.begin_time, self.end_time]
         saved_result['rnd'] = random.randint(1000000, 9999999)
         tmp_v = self.gui.imgFrame.color.current()
-        saved_result['color'] = self.gui.imgFrame.colormodels[tmp_v] if tmp_v >= 0 else 'none'
+
+        # saved_result['color'] = self.gui.imgFrame.colormodels[tmp_v] if tmp_v >= 0 else 'none'
+        if tmp_v == 0:
+            saved_result['color'] = 'color'
+        elif tmp_v == 1:
+            saved_result['color'] = 'gray'
+        elif tmp_v == 2:
+            saved_result['color'] = self.gui.imgFrame.colormodels[tmp_v]
 
         # saved_result['conf_version'] = self.gui.conf_version
         # saved_result['app_version'] = self.gui.version
@@ -361,7 +377,7 @@ class CustomFrame(ABC):
 
 class ImageFrame(CustomFrame):
     impath = 'images'
-    colormodels = ['color', 'gray']
+    colormodels = ['SERC_color', 'SERC_gray', 'TEAK_color']
     lang_list = {'en': 'EN', 'ua': 'UA'}
     language = {
         'en': {
@@ -735,7 +751,7 @@ The evaluation results and additional technical information are stored in the �
 Інструкції з тестування оцінки MOS
 
 Програма розроблена для отримання кількісної оцінки візуальної відмінності (якості) між оригінальними та реконструйованими зображеннями.
-Завдання: для вибраного набору пар зображень (оригінальні та реконструйовані) оцінити ступінь візуальної різниці від 1 (жахлива) для колосальних відмінностей у парі зображень до 5 (відмінна) для зображень з непомітними або ледь помітними відмінностями.
+Завдання: для вибраного набору пар зображень (оригінальні та реконструйовані) оцінити ступінь візуальної різниці (у формі і яскравості регіонів) від 1 (жахлива) для колосальних відмінностей у парі зображень до 5 (відмінна) для зображень з непомітними або ледь помітними відмінностями.
 
 Структура експерименту
 Передумови: Вибір набору зображень потрібної колірної моделі (кольорової або у градаціях сірого) необхідний для початку експерименту. Експерименти для кожної колірної моделі проводяться незалежно.
