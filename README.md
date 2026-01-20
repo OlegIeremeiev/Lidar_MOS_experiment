@@ -15,6 +15,10 @@ Command to install dependencies is
 ```shell
 pip install -r requirements.txt
 ```
+or with powershell (Windows 10-11)
+```shell
+py -m pip install -r requirements.txt
+```
 
 **Note**: In Windows, the Tkinter library is already installed together with the Python interpreter. For Linux and MacOS, 
 you may need to additionally install TK library like (Ubuntu):
@@ -26,6 +30,10 @@ sudo apt install python3-tk
 ### Start
 To run the program you need to execute the file "experiment.pyw" (windowed python app without console)
 
+PowerShell alternative:
+```shell
+py .\experiment.pyw
+```
 
 ### Experiment structure
 
